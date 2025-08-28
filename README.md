@@ -24,7 +24,7 @@ A FastAPI application for controlling a remotely operated robot on the Moon's su
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/tarminik/exmox_test
    cd exmox_test
    ```
 
