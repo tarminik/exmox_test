@@ -1,5 +1,6 @@
 import os
-from typing import Tuple, Optional
+import ast
+from typing import Tuple, Optional, Set, Iterable
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from app.models import RobotPosition, CommandExecution
@@ -13,23 +14,45 @@ class Direction:
 
 class RobotService:
     def __init__(self):
+        """Robot control service.
+
+        Reads initial position and obstacle configuration from environment
+        variables with safe defaults. Uses a database to persist the latest
+        position and a history of executed commands.
+        """
         self.start_x = int(os.getenv("START_X", "4"))
         self.start_y = int(os.getenv("START_Y", "2"))
         self.start_direction = os.getenv("START_DIRECTION", "WEST")
         self.obstacles = self._load_obstacles()
     
-    def _load_obstacles(self) -> set:
+    def _load_obstacles(self) -> Set[Tuple[int, int]]:
+        """Load obstacles configuration from environment safely.
+
+        The expected format is a Python-like set of tuples, for example:
+        "{(1,4), (3,5), (7,4)}". We parse this using ast.literal_eval to avoid
+        executing arbitrary code. If parsing fails, we fall back to defaults.
+        """
         obstacles_str = os.getenv("OBSTACLES", "{(1,4), (3,5), (7,4)}")
-        obstacles = set()
+        default_obstacles: Set[Tuple[int, int]] = {(1, 4), (3, 5), (7, 4)}
         try:
-            obstacles = eval(obstacles_str)
-        except:
-            obstacles = {(1, 4), (3, 5), (7, 4)}
-        return obstacles
+            parsed = ast.literal_eval(obstacles_str)
+            if isinstance(parsed, (set, list, tuple)):
+                result: Set[Tuple[int, int]] = set()
+                for item in parsed:  # ensure items are 2-int tuples
+                    if (
+                        isinstance(item, (list, tuple))
+                        and len(item) == 2
+                        and all(isinstance(v, int) for v in item)
+                    ):
+                        result.add((int(item[0]), int(item[1])))
+                return result or default_obstacles
+        except Exception:
+            pass
+        return default_obstacles
     
     async def get_current_position(self, db: AsyncSession) -> RobotPositionResponse:
         result = await db.execute(
-            select(RobotPosition).order_by(desc(RobotPosition.created_at)).limit(1)
+            select(RobotPosition).order_by(desc(RobotPosition.id)).limit(1)
         )
         latest_position = result.scalar_one_or_none()
         
@@ -132,7 +155,9 @@ class RobotService:
             elif command == 'R':
                 direction = self._rotate_right(direction)
         
-        await self.update_position(db, x, y, direction)
+        # Update position and log command execution in single transaction
+        new_position = RobotPosition(x=x, y=y, direction=direction)
+        db.add(new_position)
         
         command_execution = CommandExecution(
             command_string=command_string,

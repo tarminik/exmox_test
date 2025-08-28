@@ -42,6 +42,7 @@ A FastAPI application for controlling a remotely operated robot on the Moon's su
    START_DIRECTION=WEST
    DATABASE_URL=postgresql+asyncpg://user:password@localhost/moonrobot
    OBSTACLES={(1,4), (3,5), (7,4)}
+   RUN_DB_SETUP=1  # 1/true/yes to auto-create tables on startup
    ```
 
 4. **Set up PostgreSQL database**
@@ -49,11 +50,12 @@ A FastAPI application for controlling a remotely operated robot on the Moon's su
    # Create database
    createdb moonrobot
    
-   # Tables will be created automatically on first run
+   # Tables can be auto-created on app startup if RUN_DB_SETUP=1
    ```
 
 5. **Run the application**
    ```bash
+   # Set RUN_DB_SETUP=1 if you want the app to auto-create tables
    uvicorn app.main:app --reload
    ```
 
@@ -131,6 +133,8 @@ The project includes comprehensive tests using pytest with async support.
 ```bash
 pytest
 ```
+
+Tests run against an in-memory SQLite database and do not require PostgreSQL.
 
 ### Run tests with coverage
 ```bash
@@ -212,6 +216,7 @@ exmox_test/
 - `START_DIRECTION` - Initial direction (default: WEST)
 - `DATABASE_URL` - PostgreSQL connection string
 - `OBSTACLES` - Set of obstacle coordinates in format `{(x1,y1), (x2,y2)}`
+- `RUN_DB_SETUP` - If `1`/`true`/`yes`, the app creates tables on startup
 
 ### Example Configurations
 

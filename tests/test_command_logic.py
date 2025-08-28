@@ -1,4 +1,3 @@
-import pytest
 from app.robot_service import RobotService, Direction
 
 def test_rotate_left_logic():
